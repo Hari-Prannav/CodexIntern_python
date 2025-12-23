@@ -1,76 +1,67 @@
-import speech_recognition as sr
-import pyttsx3
-import requests
-import datetime
+from datetime import datetime
 
-engine = pyttsx3.init()
-print("Assistant: Hello! I'm your personal assistant. How can I help you today?")
-engine.say("Hello! I'm your personal assistant. How can I help you today?")
-engine.runAndWait()
-
-recognizer = sr.Recognizer()
-
-while True:
-    with sr.Microphone() as source:
-        recognizer.adjust_for_ambient_noise(source, duration=2)
-        print("Speak now...")
-
-        try:
-            audio = recognizer.listen(source, timeout=5, phrase_time_limit=10)
-            text = recognizer.recognize_google(audio, language="en-US")
-            print("You:", text)
-        except sr.UnknownValueError:
-            print("Assistant: Sorry, I can't hear you")
-            engine.say("Sorry, I can't hear you")
-            engine.runAndWait()
-            text = ""
-            continue 
-
-        if "weather" in text.lower():
-            city = "Chennai"
-            api_key = "bee0c458b22c4ae438ec0fd598648dae"
-            url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric"
-            response = requests.get(url)
-
-            if response.status_code == 200:
-                data = response.json()
-                temp = data['main']['temp']
-                weather = data['weather'][0]['description']
-                print(f"\nAssistant: Current weather in {city}: {temp}°C, {weather}")
-                engine.say(f"The weather in {city} is {weather} with a temperature of {temp} degrees Celsius")
-                engine.runAndWait()
-            else:
-                print("Assistant: Sorry, I couldn't fetch the weather!")
-                engine.say("Sorry, I couldn't fetch the weather!")
-                engine.runAndWait()
-        
-        elif "news" in text.lower():
-            api_key_news = "117e5c4c993f459bb940412b32ef1185"
-            url_news = f"https://newsapi.org/v2/top-headlines?country=us&apiKey={api_key_news}"
-            response = requests.get(url_news)
-            if(response.status_code == 200):
-                articles = response.json().get("articles",[])
-                headlines = [article['title'] for article in articles[:5]]
-                print("Assistant: Here are the top 5 Headline news in US: ")
-                for i,headline in enumerate(headlines,1):
-                    print(f"{i}. {headline}")
-                engine.say("Here are the top 5 Headline news in US: "+",".join(headlines))
-                engine.runAndWait()
-
-        elif "time" in text:
-            time = datetime.datetime.now().strftime("%I:%M %p")
-            print(f"Assistant: The current time is: {time}")
-            engine.say(f"The current time is: {time}.")
-            engine.runAndWait()
+from speech_text import listen_once, speak
+from weather_api import get_weather
 
 
-        elif "exit" in text.lower() or "quit" in text.lower():
-            print("Assistant: Goodbye!")
-            engine.say("Goodbye! Have a nice day.")
-            engine.runAndWait()
+WAKE_WORDS = ["assistant", "hey assistant"]
+
+
+def handle_command(text: str) -> None:
+    """
+    Handle a single command string (text without wake word).
+    Extend this with more intents over time.
+    """
+    if not text:
+        speak("I did not hear any command.")
+        return
+
+    # Simple weather intent
+    if "weather" in text:
+        speak("Which city?")
+        city = listen_once()
+        if city:
+            response = get_weather(city)
+            speak(response)
+        else:
+            speak("I did not hear the city name.")
+        return
+
+    # Time intent
+    if "time" in text:
+        now = datetime.now().strftime("%H:%M")
+        speak(f"The time is {now}.")
+        return
+
+    # You can add more commands here (date, jokes, wiki, etc.)
+
+    # Default fallback
+    speak("I can tell you the time or the weather. Try asking for one of those.")
+
+
+def main() -> None:
+    speak("Hello, I am your voice assistant. Say 'assistant' followed by a command.")
+
+    while True:
+        text = listen_once()
+
+        # Exit commands work even without wake word
+        if any(word in text for word in ["stop", "exit", "quit"]):
+            speak("Goodbye!")
             break
 
+        # Only react when wake word is detected
+        if any(w in text for w in WAKE_WORDS):
+            for w in WAKE_WORDS:
+                text = text.replace(w, "").strip()
+            if not text:
+                speak("Yes? What do you want me to do?")
+                text = listen_once()
+            handle_command(text)
         else:
-            print("Assistant: I'm not sure how to help with that.")
-            engine.say("I'm not sure how to help with that.")
-            engine.runAndWait()
+            # Ignore other noise/phrases
+            pass
+
+
+if __name__ == "__main__":
+    main()

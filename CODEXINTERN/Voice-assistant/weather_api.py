@@ -1,20 +1,33 @@
+import os
 import requests
 
-API_KEY = "bee0c458b22c4ae438ec0fd598648dae"
-BASE_URL = "http://api.openweathermap.org/data/2.5/weather"
+from config import WEATHER_API_KEY
 
-city = input("Enter your city: ")
+BASE_URL = "https://api.openweathermap.org/data/2.5/weather"
 
-params = {
-    'q': city,
-    'appid': API_KEY,
-    'units': 'metric'  # You’ll get °C
-}
 
-response = requests.get(BASE_URL, params=params)
-data = response.json()
+def get_weather(city: str) -> str:
+    """Return a human-readable weather sentence for the given city."""
+    if not WEATHER_API_KEY:
+        return "Weather API key is not configured."
 
-temp = data['main']['temp']
-weather = data['weather'][0]['main']
+    try:
+        params = {
+            "q": city,
+            "appid": WEATHER_API_KEY,
+            "units": "metric",
+        }
+        resp = requests.get(BASE_URL, params=params, timeout=5)
+        resp.raise_for_status()
+        data = resp.json()
 
-print(f"\nCurrent weather in {city}: {temp}°C, {weather}")
+        temp = data["main"]["temp"]
+        desc = data["weather"][0]["description"]
+        feels_like = data["main"].get("feels_like", temp)
+
+        return (
+            f"The current temperature in {city} is {temp:.1f}°C, "
+            f"feels like {feels_like:.1f}°C, with {desc}."
+        )
+    except Exception:
+        return "I could not fetch the weather right now."
