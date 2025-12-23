@@ -17,4 +17,3 @@ This project implements a Python client for the **Gemini API**, providing an int
   - `python-dotenv` (if using `.env` files)  
 - A valid **Gemini API key**.
 
-Install dependencies (adjust file name if you have a `requirements.txt` here):
